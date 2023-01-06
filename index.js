@@ -7,6 +7,7 @@ const bot = new TelegramAPI(token, {polling: true})
 
 let mychatid = -111
 let svitloe = true
+let svitloOFF = false
 let active = true
 let changeTime = new Date()
 
@@ -117,10 +118,21 @@ function checkLightb7(countOfCheck) {
                 console.log(`ii:${ii}  `, item, `  available:${available}`, `  availableProbe:${availableProbe}`, `  svitloe:${svitloe}`, `  mychatid:${mychatid}`)
                 
                 if (countTry == countOfCheck) {
+                    if (available && svitloe){
+                        svitloOFF = false
+                    }
                     if (!available && svitloe) {
-                        bot.sendMessage(mychatid, messages.lightoff + '\nВоно було з нами ' + getTime(changeTime, new Date()),{parse_mode:'Markdown'})
-                        svitloe = false
-                        changeTime = new Date()
+                        if (svitloOFF || countOfCheck > 1){
+                            bot.sendMessage(mychatid, messages.lightoff + '\nВоно було з нами ' + getTime(changeTime, new Date()),{parse_mode:'Markdown'})
+                            svitloe = false
+                            changeTime = new Date()
+                        } else {
+                            //коррекція короткострокових втрат сигналу від сенсору (буває сенсор пропадає на 2-3 секунди)
+                            //приймаємо рішення, що світла все ж таки немає після двух опитуваннь сенсору (ітервал 15 сек)
+                            //цей функціонал працює тільки коли є один сенсор.
+                            //коли буде 2 чи більше сенсорів (countOfCheck > 1) - ця гілка ніколи не спрацьовує
+                            svitloOFF = true 
+                        }
                     }
                     if (available && !svitloe) {
                         bot.sendMessage(mychatid, messages.lighton + '\nЙого не було з нами ' + getTime(changeTime, new Date()),{parse_mode:'Markdown'})
