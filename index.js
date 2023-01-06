@@ -13,8 +13,9 @@ let changeTime = new Date()
 
 function getTime(dateFrom,dateTo){
     let milisecond = dateTo - dateFrom
-    let minutes = Math.floor((milisecond / (1000 * 60)) % 60)
-    let hours = Math.floor((minutes / 60) % 60)
+    let seconds = Math.floor(milisecond / 1000)
+    let minutes = Math.floor(seconds / 60)
+    let hours = Math.floor(minutes / 60)
     minutes = minutes - hours * 60
 
     let strHours = 'год.'
