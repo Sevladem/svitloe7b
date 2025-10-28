@@ -1,9 +1,8 @@
 const TelegramAPI = require('node-telegram-bot-api')
 const tcpp = require('tcp-ping')
-const {token, pingList, shedule} = require('./options')
+const {token, pingList, flushUpdatesOnStart, shedule} = require('./options')
 const {messages} = require('./messages')
-const options = require('./options')
-const bot = new TelegramAPI(token, {polling: true})
+const bot = new TelegramAPI(token, {polling: false})
 
 let mychatid = -111
 let svitloe = true
@@ -21,7 +20,7 @@ function getTime(dateFrom,dateTo){
 
     let strHours = 'год.'
     let strMinutes = 'хв.'
-    
+
     return `*${hours} ${strHours}, ${minutes} ${strMinutes}*`
 }
 
@@ -32,11 +31,11 @@ function checkIpAndPortAddress (item, chatId) {
     tcpp.probe(address, port, function (err, available) {
 
         if (available) {
-            bot.sendMessage(chatId, '⚡⚡ ' + messages.light_is_there + getTime(changeTime,new Date()) + ' ⚡️⚡️',{'parse_mode':'Markdown'})
+            bot.sendMessage(chatId, messages.light_is_there(getTime(changeTime, new Date())), {'parse_mode':'Markdown'})
         }
 
         if (!available) {
-            bot.sendMessage(chatId, '😭😭 ' + messages.light_is_no_there + getTime(changeTime,new Date()) + ' 😭😭',{'parse_mode':'Markdown'})
+            bot.sendMessage(chatId, messages.light_is_no_there(getTime(changeTime, new Date())), {'parse_mode':'Markdown'})
         }
 
     })
@@ -47,20 +46,20 @@ function probeIpAndPortAddress (item, callback) {
     let address = item.address
     let port = item.port || 80
 
-    
+
         tcpp.probe(address, port, function (err, available) {
 
             callback(item, available)
 
         })
-    
+
 }
 
 bot.setMyCommands([
     {command: "/light", description: "є світло чи нема? ось в чому питання."},
-    {command: "/shedule", description: "Приблизний графік відключень..."},
+    // {command: "/shedule", description: "Приблизний графік відключень..."},
     {command: "/info", description: "Трохи про мене..."}
-    
+
 ])
 
 bot.on('message', async msg=>{
@@ -75,10 +74,11 @@ bot.on('message', async msg=>{
     }
 
     if (text === '/shedule' || text === '/shedule@Svitloebot' || text === '/shedule@testSvitloebot') {
-        bot.sendPhoto(chatId, shedule)
+        if (shedule) {
+            await bot.sendPhoto(chatId, shedule)
+        }
         bot.sendMessage(chatId, messages.shedule)
     }
-
 
     if (chatId == 187060567) {
 
@@ -90,7 +90,7 @@ bot.on('message', async msg=>{
             active = true
             bot.sendMessage(chatId, `active: ${active}`)
         }
-        
+
     }
 
 })
@@ -104,7 +104,7 @@ bot.on('new_chat_members', msg =>{
 })
 
 function checkLightb7(countOfCheck) {
-    
+
 
     if (mychatid != -111 && active) {
         let countTry = 0
@@ -116,7 +116,7 @@ function checkLightb7(countOfCheck) {
                 countTry++
                 available = available || availableProbe
                 console.log(`ii:${ii}  `, item, `  available:${available}`, `  availableProbe:${availableProbe}`, `  svitloe:${svitloe}`, `  mychatid:${mychatid}`)
-                
+
                 if (countTry == countOfCheck) {
                     if (available && svitloe){
                         svitloOFF = false
@@ -131,7 +131,7 @@ function checkLightb7(countOfCheck) {
                             //приймаємо рішення, що світла все ж таки немає після двух опитуваннь сенсору (ітервал 15 сек)
                             //цей функціонал працює тільки коли є один сенсор.
                             //коли буде 2 чи більше сенсорів (countOfCheck > 1) - ця гілка ніколи не спрацьовує
-                            svitloOFF = true 
+                            svitloOFF = true
                         }
                     }
                     if (available && !svitloe) {
@@ -154,3 +154,25 @@ let intervalTime = 15000;//интервал проверки доступнос�
 setInterval(function () {
     checkLightb7(pingList.length)
 }, intervalTime)
+
+async function startBot() {
+    if (flushUpdatesOnStart) {
+        try {
+            const updates = await bot.getUpdates();
+            if (updates.length) {
+                const lastUpdateId = updates[updates.length - 1].update_id;
+                await bot.getUpdates({offset: lastUpdateId + 1});
+            }
+        } catch (error) {
+            console.error('Не вдалося очистити чергу апдейтів перед стартом:', error);
+        }
+    }
+
+    try {
+        await bot.startPolling();
+    } catch (error) {
+        console.error('Не вдалося запустити long polling:', error);
+    }
+}
+
+startBot();
